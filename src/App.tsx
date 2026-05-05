@@ -3,6 +3,61 @@ import { Sandpack } from "@codesandbox/sandpack-react";
 import { api } from "../convex/_generated/api";
 import type { Doc } from "../convex/_generated/dataModel";
 
+// Sandpack content: scale-to-fit thumbnail of the generated component.
+// Component renders at virtual 1280×853 (3:2), then we transform-scale the
+// whole frame down to fit the tile so the full UI is visible at a glance.
+const SCALED_APP_WRAPPER = `import Component from "./Component";
+import { useEffect, useState } from "react";
+import "./styles.css";
+
+const VW = 1280;
+const VH = 853;
+
+export default function App() {
+  const [scale, setScale] = useState(0.3);
+  useEffect(() => {
+    const update = () => {
+      const sx = window.innerWidth / VW;
+      const sy = window.innerHeight / VH;
+      setScale(Math.min(sx, sy));
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  return (
+    <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#fff" }}>
+      <div
+        style={{
+          width: VW,
+          height: VH,
+          transformOrigin: "top left",
+          transform: \`scale(\${scale})\`,
+          overflow: "hidden",
+          background: "#fff",
+        }}
+      >
+        <Component />
+      </div>
+    </div>
+  );
+}
+`;
+
+const SANDPACK_RESET_CSS = `html, body, #root { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+`;
+
+const SANDPACK_INDEX = `import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
+
+createRoot(document.getElementById("root")).render(
+  <StrictMode><App /></StrictMode>
+);
+`;
+
 const RUBRIC = [
   { k: "layout", l: "L" },
   { k: "colors", l: "C" },
@@ -448,8 +503,10 @@ function SandpackTile({
     files.find((f) => f.path.endsWith(".tsx")) ??
     files[0];
   const sandpackFiles: Record<string, string> = {
-    "/App.tsx": `import Component from "./Component";\nexport default function App() { return <Component />; }`,
+    "/App.tsx": SCALED_APP_WRAPPER,
     "/Component.tsx": entry.content,
+    "/styles.css": SANDPACK_RESET_CSS,
+    "/index.tsx": SANDPACK_INDEX,
   };
   for (const f of files) {
     if (f.path !== entry.path) sandpackFiles[`/${f.path}`] = f.content;
