@@ -3,159 +3,450 @@ import { Sandpack } from "@codesandbox/sandpack-react";
 import { api } from "../convex/_generated/api";
 import type { Doc } from "../convex/_generated/dataModel";
 
+const RUBRIC = [
+  { k: "layout", l: "L" },
+  { k: "colors", l: "C" },
+  { k: "mobile", l: "M" },
+  { k: "interactivity", l: "I" },
+] as const;
+
 export default function App() {
   const refs = useQuery(api.references.list);
   const models = useQuery(api.models.list, {});
   const matrix = useQuery(api.runs.matrix);
 
   if (!refs || !models || !matrix)
-    return <div style={{ padding: 24 }}>Loading…</div>;
+    return (
+      <div style={{ padding: 48, fontFamily: "var(--mono)", fontSize: 11 }}>
+        loading…
+      </div>
+    );
 
   const enabledModels = models.filter((m) => m.enabled);
   const runByCell = new Map<string, Doc<"runs">>();
   for (const r of matrix.runs) runByCell.set(`${r.referenceId}:${r.modelId}`, r);
 
+  const totalAttempts = refs.length * enabledModels.length;
+  const today = new Date()
+    .toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
+    .replace(/\//g, ".");
+
   return (
-    <div
+    <>
+      <div className="paper-grain" />
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <Masthead today={today} />
+        <SubBanner
+          refs={refs.length}
+          models={enabledModels.length}
+          attempts={totalAttempts}
+          today={today}
+        />
+        <section style={{ padding: "20px 48px 48px" }}>
+          {refs.map((ref, i) => (
+            <BenchmarkRow
+              key={ref._id}
+              ref_={ref}
+              index={i}
+              total={refs.length}
+              models={enabledModels}
+              runByCell={runByCell}
+            />
+          ))}
+        </section>
+        <Footer />
+      </div>
+    </>
+  );
+}
+
+function Masthead({ today }: { today: string }) {
+  return (
+    <header
       style={{
-        fontFamily: "ui-sans-serif, system-ui, sans-serif",
-        padding: 24,
-        maxWidth: 1400,
-        margin: "0 auto",
+        padding: "20px 48px 14px",
+        borderBottom: "1px solid var(--ink)",
       }}
     >
-      <header style={{ marginBottom: 32 }}>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 600 }}>
-          screenshotbench
-        </h1>
-        <p style={{ color: "#666", margin: "4px 0 0" }}>
-          {refs.length} reference{refs.length === 1 ? "" : "s"} ×{" "}
-          {enabledModels.length} model{enabledModels.length === 1 ? "" : "s"} ·{" "}
-          {matrix.runs.length} run{matrix.runs.length === 1 ? "" : "s"}
-        </p>
-      </header>
-
-      {refs.length === 0 && (
-        <p>
-          No references yet. Run <code>tsx runner/seed.ts</code>.
-        </p>
-      )}
-
-      {refs.map((ref) => (
-        <section key={ref._id} style={{ marginBottom: 48 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 12px" }}>
-            {ref.name}{" "}
-            <span style={{ color: "#999", fontWeight: 400 }}>
-              · {ref.category}
-            </span>
-          </h2>
-          <div
-            style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 24 }}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+          <span
+            style={{
+              fontSize: 24,
+              fontWeight: 600,
+              letterSpacing: "-0.015em",
+              fontStyle: "italic",
+            }}
           >
-            <div>
-              {ref.screenshotUrl && (
-                <img
-                  src={ref.screenshotUrl}
-                  alt={ref.name}
-                  style={{
-                    width: "100%",
-                    border: "1px solid #e5e5e5",
-                    borderRadius: 4,
-                  }}
-                />
-              )}
-              <p style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
-                reference
-              </p>
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
-                gap: 16,
-              }}
-            >
-              {enabledModels.map((m) => {
-                const run = runByCell.get(`${ref._id}:${m._id}`);
-                return <Cell key={m._id} model={m} run={run} />;
-              })}
-            </div>
-          </div>
-        </section>
-      ))}
+            screenshotbench
+          </span>
+          <span
+            className="mono"
+            style={{ fontSize: 10, opacity: 0.5, letterSpacing: "0.08em" }}
+          >
+            VOL. 1 · {today.split(".").slice(1).join(".")}
+          </span>
+        </div>
+        <nav
+          className="mono"
+          style={{ display: "flex", gap: 22, fontSize: 12, letterSpacing: "0.04em" }}
+        >
+          <a style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>Catalog</a>
+          <a style={{ opacity: 0.55 }}>Leaderboard</a>
+          <a style={{ opacity: 0.55 }}>About</a>
+          <a style={{ opacity: 0.55 }}>Submit</a>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+function SubBanner({
+  refs,
+  models,
+  attempts,
+  today,
+}: {
+  refs: number;
+  models: number;
+  attempts: number;
+  today: string;
+}) {
+  return (
+    <div
+      className="mono"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr auto",
+        gap: 16,
+        padding: "10px 48px",
+        borderBottom: "1px solid var(--rule)",
+        fontSize: 10,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        opacity: 0.7,
+      }}
+    >
+      <span>
+        {refs} benchmarks · {models} models · {attempts} attempts · graded on
+        layout · color · mobile · interactivity
+      </span>
+      <span>upd. {today}</span>
     </div>
   );
 }
 
-function Cell({
+function BenchmarkRow({
+  ref_,
+  index,
+  total,
+  models,
+  runByCell,
+}: {
+  ref_: Doc<"references"> & { screenshotUrl: string | null };
+  index: number;
+  total: number;
+  models: Doc<"models">[];
+  runByCell: Map<string, Doc<"runs">>;
+}) {
+  const num = String(index + 1).padStart(3, "0");
+  return (
+    <article
+      style={{
+        paddingTop: 28,
+        paddingBottom: 28,
+        borderBottom: index < total - 1 ? "1px solid var(--rule-soft)" : "none",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          gap: 24,
+          marginBottom: 14,
+        }}
+      >
+        <span
+          className="mono"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            color: "var(--accent)",
+            fontWeight: 600,
+          }}
+        >
+          № {num}
+        </span>
+        <h3
+          style={{
+            fontSize: 32,
+            margin: 0,
+            fontWeight: 500,
+            letterSpacing: "-0.015em",
+            flex: 1,
+          }}
+        >
+          {ref_.name}
+        </h3>
+        <span
+          className="mono"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            opacity: 0.55,
+          }}
+        >
+          {ref_.category}
+        </span>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 3fr",
+          gap: 14,
+        }}
+      >
+        <ReferenceTile ref_={ref_} />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 14,
+          }}
+        >
+          {models.map((m) => (
+            <AttemptTile
+              key={m._id}
+              model={m}
+              run={runByCell.get(`${ref_._id}:${m._id}`)}
+            />
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ReferenceTile({
+  ref_,
+}: {
+  ref_: Doc<"references"> & { screenshotUrl: string | null };
+}) {
+  return (
+    <figure style={{ margin: 0 }}>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid var(--border-tile)",
+          aspectRatio: "3 / 2",
+          overflow: "hidden",
+          boxShadow: "0 1px 0 rgba(26,22,18,0.04)",
+        }}
+      >
+        {ref_.screenshotUrl && (
+          <img
+            src={ref_.screenshotUrl}
+            alt={ref_.name}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: "top",
+              display: "block",
+            }}
+          />
+        )}
+      </div>
+      <figcaption
+        className="mono"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginTop: 8,
+          fontSize: 10,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}
+      >
+        <span style={{ fontWeight: 600 }}>Reference</span>
+        <span style={{ opacity: 0.55 }}>ground truth</span>
+      </figcaption>
+    </figure>
+  );
+}
+
+function AttemptTile({
   model,
   run,
 }: {
   model: Doc<"models">;
   run: Doc<"runs"> | undefined;
 }) {
-  const containerStyle: React.CSSProperties = {
-    border: "1px solid #e5e5e5",
-    borderRadius: 4,
-    overflow: "hidden",
-    background: "white",
-  };
-  const headerStyle: React.CSSProperties = {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-    fontSize: 12,
-    padding: "8px 12px",
-    borderBottom: "1px solid #e5e5e5",
-    background: "#fafafa",
-  };
-
+  const status = run?.status;
   return (
-    <div style={containerStyle}>
-      <div style={headerStyle}>
-        <strong>{model.displayName}</strong>
-        <span style={{ color: "#999" }}>{model.provider}</span>
+    <figure style={{ margin: 0 }}>
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid var(--border-tile)",
+          aspectRatio: "3 / 2",
+          overflow: "hidden",
+          position: "relative",
+        }}
+      >
+        {status === "complete" && run?.files && run.files.length > 0 ? (
+          <SandpackTile files={run.files} />
+        ) : (
+          <TileEmpty status={status} errorMessage={run?.errorMessage} />
+        )}
+        <ScoreBadge run={run} />
       </div>
-      {!run && <Empty>no run yet</Empty>}
-      {run?.status === "queued" && <Empty>queued</Empty>}
-      {run?.status === "generating" && <Empty>generating…</Empty>}
-      {run?.status === "failed" && (
-        <Empty>failed: {run.errorMessage ?? "(unknown)"}</Empty>
-      )}
-      {run?.status === "complete" && run.files && run.files.length > 0 && (
-        <Render files={run.files} duration={run.durationMs} />
-      )}
-    </div>
+      <figcaption
+        className="mono"
+        style={{
+          marginTop: 8,
+          fontSize: 10,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            marginBottom: 4,
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>{model.displayName}</span>
+          <span style={{ opacity: 0.55 }}>
+            {run?.durationMs ? `${(run.durationMs / 1000).toFixed(0)}s` : "—"}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+          {RUBRIC.map((row) => (
+            <div key={row.k} style={{ flex: 1 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 9,
+                  marginBottom: 2,
+                  opacity: 0.7,
+                }}
+              >
+                <span>{row.l}</span>
+                <span className="tabular" style={{ fontWeight: 600 }}>
+                  —
+                </span>
+              </div>
+              <div style={{ height: 2, background: "var(--track)" }}>
+                <div
+                  style={{
+                    width: 0,
+                    height: "100%",
+                    background: "var(--accent)",
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </figcaption>
+    </figure>
   );
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
+function TileEmpty({
+  status,
+  errorMessage,
+}: {
+  status?: string;
+  errorMessage?: string;
+}) {
+  const labels: Record<string, string> = {
+    queued: "queued",
+    generating: "generating…",
+    failed: "failed",
+  };
+  const label = status ? labels[status] ?? "no run" : "no run";
   return (
     <div
+      className="mono"
       style={{
-        padding: 24,
-        textAlign: "center",
-        color: "#999",
-        fontSize: 13,
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        gap: 4,
+        color: "var(--ink-faint)",
+        fontSize: 10,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
       }}
     >
-      {children}
+      <span>{label}</span>
+      {errorMessage && (
+        <span
+          style={{
+            fontSize: 9,
+            opacity: 0.6,
+            maxWidth: "80%",
+            textAlign: "center",
+            textTransform: "none",
+            letterSpacing: 0,
+          }}
+        >
+          {errorMessage}
+        </span>
+      )}
     </div>
   );
 }
 
-function Render({
+function ScoreBadge({ run }: { run: Doc<"runs"> | undefined }) {
+  if (run?.status !== "complete") return null;
+  return (
+    <div
+      className="mono tabular"
+      style={{
+        position: "absolute",
+        top: 8,
+        right: 8,
+        background: "var(--ink)",
+        color: "var(--bg-paper)",
+        padding: "3px 8px",
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: "0.04em",
+      }}
+    >
+      <span style={{ color: "var(--accent)" }}>—</span>
+      <span style={{ opacity: 0.5 }}>/100</span>
+    </div>
+  );
+}
+
+function SandpackTile({
   files,
-  duration,
 }: {
   files: { path: string; content: string }[];
-  duration: number | undefined;
 }) {
   const entry =
     files.find((f) => f.path === "Component.tsx") ??
     files.find((f) => f.path.endsWith(".tsx")) ??
     files[0];
-
   const sandpackFiles: Record<string, string> = {
     "/App.tsx": `import Component from "./Component";\nexport default function App() { return <Component />; }`,
     "/Component.tsx": entry.content,
@@ -165,7 +456,14 @@ function Render({
   }
 
   return (
-    <div>
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        // Sandpack's preview iframe should fill the tile. We render only the
+        // preview (no editor) and rely on Sandpack's auto-scaling.
+      }}
+    >
       <Sandpack
         template="react-ts"
         files={sandpackFiles}
@@ -173,21 +471,35 @@ function Render({
           showNavigator: false,
           showTabs: false,
           showLineNumbers: false,
-          editorHeight: 360,
+          showConsoleButton: false,
+          editorHeight: "100%",
           editorWidthPercentage: 0,
+          classes: {
+            "sp-wrapper": "sp-tile-wrapper",
+            "sp-preview": "sp-tile-preview",
+          },
         }}
       />
-      <div
-        style={{
-          padding: "6px 12px",
-          fontSize: 11,
-          color: "#999",
-          borderTop: "1px solid #e5e5e5",
-        }}
-      >
-        {duration ? `${(duration / 1000).toFixed(1)}s` : ""} · {files.length} file
-        {files.length === 1 ? "" : "s"}
-      </div>
     </div>
+  );
+}
+
+function Footer() {
+  return (
+    <footer
+      className="mono"
+      style={{
+        padding: "20px 48px 32px",
+        borderTop: "1px solid var(--rule)",
+        fontSize: 10,
+        letterSpacing: "0.08em",
+        opacity: 0.5,
+        display: "flex",
+        justifyContent: "space-between",
+      }}
+    >
+      <span>SCREENSHOTBENCH · OPEN BENCHMARK</span>
+      <span>VIA CURSOR SDK</span>
+    </footer>
   );
 }
