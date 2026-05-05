@@ -1,20 +1,17 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+// Returns the latest run per (referenceId, modelId) cell across all batches.
 export const matrix = query({
-  args: { batchId: v.optional(v.id("batches")) },
-  handler: async (ctx, args) => {
-    let batchId = args.batchId;
-    if (!batchId) {
-      const recent = await ctx.db.query("batches").order("desc").take(1);
-      if (recent.length === 0) return { batchId: null, runs: [] };
-      batchId = recent[0]._id;
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("runs").order("desc").take(1000);
+    const latestByCell = new Map<string, (typeof all)[number]>();
+    for (const r of all) {
+      const key = `${r.referenceId}:${r.modelId}`;
+      if (!latestByCell.has(key)) latestByCell.set(key, r);
     }
-    const runs = await ctx.db
-      .query("runs")
-      .withIndex("by_batch", (q) => q.eq("batchId", batchId!))
-      .take(500);
-    return { batchId, runs };
+    return { runs: Array.from(latestByCell.values()) };
   },
 });
 

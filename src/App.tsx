@@ -6,7 +6,7 @@ import type { Doc } from "../convex/_generated/dataModel";
 export default function App() {
   const refs = useQuery(api.references.list);
   const models = useQuery(api.models.list, {});
-  const matrix = useQuery(api.runs.matrix, {});
+  const matrix = useQuery(api.runs.matrix);
 
   if (!refs || !models || !matrix)
     return <div style={{ padding: 24 }}>Loading…</div>;

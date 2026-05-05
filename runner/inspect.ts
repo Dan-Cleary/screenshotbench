@@ -10,8 +10,8 @@ const client = new ConvexHttpClient(
   process.env.VITE_CONVEX_URL ?? loadDotEnvUrl()!,
 );
 
-const { batchId, runs } = await client.query(api.runs.matrix, {});
-console.log(`batch=${batchId}, runs=${runs.length}`);
+const { runs } = await client.query(api.runs.matrix);
+console.log(`runs=${runs.length}`);
 for (const r of runs) {
   console.log(
     `  run=${r._id} status=${r.status} files=${r.files?.length ?? 0} duration=${r.durationMs ?? "-"}ms`,

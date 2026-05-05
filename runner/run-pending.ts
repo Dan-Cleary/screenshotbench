@@ -46,6 +46,20 @@ function loadDotEnvUrl(): string | undefined {
   }
 }
 
+/**
+ * Best-effort extraction when a model returned code in chat instead of writing
+ * a file. Order: fenced ```tsx block, else trim everything before the first
+ * import/export and after the last close brace/paren.
+ */
+function extractCode(text: string): string {
+  const fenced = text.match(/```(?:tsx|ts|jsx|js)?\s*\n([\s\S]*?)\n```/);
+  if (fenced) return fenced[1].trim();
+
+  const firstCode = text.search(/^(import |export |const |function )/m);
+  if (firstCode > 0) return text.slice(firstCode).trim();
+  return text.trim();
+}
+
 function walk(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
@@ -104,15 +118,10 @@ async function runOne(runId: Id<"runs">) {
     }));
 
     if (files.length === 0) {
-      // Fallback: model returned code in chat (decision A's prompt should
-      // prevent this, but log it for visibility).
       console.warn(
-        `[runner] model ${model.slug} returned text instead of files; storing as Component.tsx`,
+        `[runner] model ${model.slug} returned text instead of files; extracting code from response`,
       );
-      const code = assistantText
-        .replace(/^```(?:tsx|ts|jsx|js)?\n?/m, "")
-        .replace(/\n?```\s*$/m, "");
-      files.push({ path: "Component.tsx", content: code });
+      files.push({ path: "Component.tsx", content: extractCode(assistantText) });
     }
 
     await client.mutation(api.runs.markComplete, {
@@ -138,11 +147,8 @@ async function main() {
     console.log("[runner] no queued runs");
     return;
   }
-  console.log(`[runner] processing ${queued.length} run(s)`);
-  // Sequential for now; parallelize later.
-  for (const r of queued) {
-    await runOne(r._id);
-  }
+  console.log(`[runner] processing ${queued.length} run(s) in parallel`);
+  await Promise.all(queued.map((r) => runOne(r._id)));
 }
 
 await main();
