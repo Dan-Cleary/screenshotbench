@@ -1,0 +1,131 @@
+{
+  "version": "0.2.0",
+  "referenceSlug": "prompthub-pricing",
+  "categories": [
+    {
+      "key": "L",
+      "label": "Layout & content",
+      "checks": [
+        {
+          "id": "L1",
+          "label": "Has 4 pricing tiers",
+          "kind": "elementCount",
+          "selector": "[data-tier], .tier, .pricing-card, .price-card, [class*='card'], [class*='Card'], [class*='tier'], [class*='Tier'], [class*='plan'], [class*='Plan']",
+          "min": 4
+        },
+        {
+          "id": "L2",
+          "label": "Heading 'Get started for free' present",
+          "kind": "headingExists",
+          "level": 1,
+          "textIncludes": "Get started"
+        },
+        {
+          "id": "L3",
+          "label": "Mentions all four tier names",
+          "kind": "containsText",
+          "text": "Free"
+        },
+        {
+          "id": "L4",
+          "label": "Mentions 'Enterprise' tier",
+          "kind": "containsText",
+          "text": "Enterprise"
+        },
+        {
+          "id": "L5",
+          "label": "Has a Monthly/Yearly billing toggle",
+          "kind": "containsText",
+          "text": "Yearly"
+        },
+        {
+          "id": "L6",
+          "label": "All 4 tiers align on one row at desktop",
+          "kind": "cardsAlignedInRow",
+          "selector": "[class*='card'], [class*='Card'], [class*='tier'], [class*='Tier'], [class*='plan'], [class*='Plan']",
+          "minCount": 4,
+          "width": 1280,
+          "yToleranceFraction": 0.05
+        }
+      ]
+    },
+    {
+      "key": "C",
+      "label": "Colors",
+      "checks": [
+        {
+          "id": "C1",
+          "label": "CTA buttons use a purple/violet accent (bg, text, or border)",
+          "kind": "anyColorMatches",
+          "selector": "button, a[role='button'], [class*='button'], [class*='Button']",
+          "properties": ["backgroundColor", "color", "borderColor"],
+          "hue": { "min": 240, "max": 290 }
+        },
+        {
+          "id": "C2",
+          "label": "Pro tier badge uses purple/pink accent",
+          "kind": "anyColorMatches",
+          "selector": "[class*='badge'], [class*='Badge'], [class*='pro'], [class*='Pro'], [class*='tag'], [class*='Tag'], span",
+          "properties": ["backgroundColor", "color"],
+          "hue": { "min": 270, "max": 330 }
+        }
+      ]
+    },
+    {
+      "key": "M",
+      "label": "Mobile / responsive",
+      "checks": [
+        {
+          "id": "M1",
+          "label": "No horizontal scroll at 390px",
+          "kind": "noHorizontalScrollAt",
+          "width": 390
+        },
+        {
+          "id": "M2",
+          "label": "Tiers stack vertically at 390px",
+          "kind": "stacksAtMobile",
+          "selector": "[class*='card'], [class*='Card'], [class*='tier'], [class*='Tier'], [class*='plan'], [class*='Plan']",
+          "width": 390
+        },
+        {
+          "id": "M3",
+          "label": "Body text is at least 12px",
+          "kind": "minFontSize",
+          "minPx": 12
+        },
+        {
+          "id": "M4",
+          "label": "No horizontal overflow at 768px tablet",
+          "kind": "noHorizontalScrollAt",
+          "width": 768
+        }
+      ]
+    },
+    {
+      "key": "I",
+      "label": "Interactivity & semantics",
+      "checks": [
+        {
+          "id": "I1",
+          "label": "Has real <button> elements (not div spam)",
+          "kind": "hasRealControl",
+          "role": "button",
+          "min": 4
+        },
+        {
+          "id": "I2",
+          "label": "Buttons have a hover state",
+          "kind": "hoverChangesStyle",
+          "selector": "button, a[role='button']"
+        },
+        {
+          "id": "I3",
+          "label": "Billing toggle changes selected state on click",
+          "kind": "clickTogglesState",
+          "selector": "button, [role='switch'], [role='tab'], input[type='checkbox']"
+        }
+      ]
+    }
+  ]
+}

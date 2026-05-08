@@ -14,6 +14,7 @@
     "@cursor/sdk": "^1.0.12",
     "@types/node": "^25.6.0",
     "convex": "^1.37.0",
+    "playwright": "^1.59.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   }

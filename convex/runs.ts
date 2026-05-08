@@ -84,6 +84,41 @@ export const markComplete = mutation({
   },
 });
 
+export const setEvaluation = mutation({
+  args: {
+    runId: v.id("runs"),
+    rubricVersion: v.string(),
+    total: v.number(),
+    categories: v.array(
+      v.object({
+        key: v.string(),
+        passed: v.number(),
+        total: v.number(),
+        checks: v.array(
+          v.object({
+            id: v.string(),
+            label: v.string(),
+            passed: v.boolean(),
+            detail: v.optional(v.string()),
+          }),
+        ),
+      }),
+    ),
+    errorMessage: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.runId, {
+      evaluation: {
+        scoredAt: Date.now(),
+        rubricVersion: args.rubricVersion,
+        total: args.total,
+        categories: args.categories,
+        errorMessage: args.errorMessage,
+      },
+    });
+  },
+});
+
 export const markFailed = mutation({
   args: { runId: v.id("runs"), errorMessage: v.string() },
   handler: async (ctx, args) => {

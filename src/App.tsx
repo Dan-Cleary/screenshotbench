@@ -426,33 +426,40 @@ function AttemptTile({
           </span>
         </div>
         <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-          {RUBRIC.map((row) => (
-            <div key={row.k} style={{ flex: 1 }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: 9,
-                  marginBottom: 2,
-                  opacity: 0.7,
-                }}
-              >
-                <span>{row.l}</span>
-                <span className="tabular" style={{ fontWeight: 600 }}>
-                  —
-                </span>
-              </div>
-              <div style={{ height: 2, background: "var(--track)" }}>
+          {RUBRIC.map((row) => {
+            const cat = run?.evaluation?.categories.find(
+              (c) => c.key === row.l,
+            );
+            const ratio =
+              cat && cat.total > 0 ? cat.passed / cat.total : 0;
+            return (
+              <div key={row.k} style={{ flex: 1 }}>
                 <div
                   style={{
-                    width: 0,
-                    height: "100%",
-                    background: "var(--accent)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 9,
+                    marginBottom: 2,
+                    opacity: 0.7,
                   }}
-                />
+                >
+                  <span>{row.l}</span>
+                  <span className="tabular" style={{ fontWeight: 600 }}>
+                    {cat ? `${cat.passed}/${cat.total}` : "—"}
+                  </span>
+                </div>
+                <div style={{ height: 2, background: "var(--track)" }}>
+                  <div
+                    style={{
+                      width: `${ratio * 100}%`,
+                      height: "100%",
+                      background: "var(--accent)",
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </figcaption>
     </figure>
@@ -510,6 +517,7 @@ function TileEmpty({
 
 function ScoreBadge({ run }: { run: Doc<"runs"> | undefined }) {
   if (run?.status !== "complete") return null;
+  const score = run.evaluation?.total;
   return (
     <div
       className="mono tabular"
@@ -525,7 +533,9 @@ function ScoreBadge({ run }: { run: Doc<"runs"> | undefined }) {
         letterSpacing: "0.04em",
       }}
     >
-      <span style={{ color: "var(--accent)" }}>—</span>
+      <span style={{ color: "var(--accent)" }}>
+        {score === undefined ? "—" : score}
+      </span>
       <span style={{ opacity: 0.5 }}>/100</span>
     </div>
   );
@@ -777,6 +787,7 @@ function DetailModal({
                 }}
               />
             )}
+            <RubricBreakdown run={run} />
           </section>
 
           <div
@@ -812,6 +823,137 @@ function DetailModal({
     </div>
   );
 }
+
+function RubricBreakdown({ run }: { run: Doc<"runs"> }) {
+  const evalu = run.evaluation;
+  if (!evalu) {
+    return (
+      <div
+        className="mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          opacity: 0.55,
+          marginTop: 8,
+        }}
+      >
+        rubric · not yet scored
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div
+        className="mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          opacity: 0.55,
+          marginBottom: 8,
+          display: "flex",
+          justifyContent: "space-between",
+        }}
+      >
+        <span>rubric · v{evalu.rubricVersion}</span>
+        <span className="tabular">
+          <span style={{ color: "var(--accent)", fontWeight: 600 }}>
+            {evalu.total}
+          </span>
+          <span style={{ opacity: 0.5 }}>/100</span>
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {evalu.categories.map((cat) => (
+          <div key={cat.key}>
+            <div
+              className="mono"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 10,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                opacity: 0.7,
+                marginBottom: 4,
+              }}
+            >
+              <span>
+                {cat.key} ·{" "}
+                {CATEGORY_LABELS[cat.key as keyof typeof CATEGORY_LABELS] ??
+                  cat.key}
+              </span>
+              <span className="tabular" style={{ fontWeight: 600 }}>
+                {cat.passed}/{cat.total}
+              </span>
+            </div>
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              {cat.checks.map((c) => (
+                <li
+                  key={c.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 8,
+                    fontSize: 12,
+                    color: c.passed ? "var(--ink)" : "var(--ink-faint)",
+                    opacity: c.passed ? 1 : 0.7,
+                  }}
+                >
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: 10,
+                      width: 14,
+                      color: c.passed ? "var(--accent)" : "var(--ink-faint)",
+                    }}
+                  >
+                    {c.passed ? "✓" : "✗"}
+                  </span>
+                  <span style={{ flex: 1 }}>{c.label}</span>
+                  {c.detail && (
+                    <span
+                      className="mono"
+                      style={{ fontSize: 10, opacity: 0.5 }}
+                      title={c.detail}
+                    >
+                      ⓘ
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      {evalu.errorMessage && (
+        <div
+          className="mono"
+          style={{ fontSize: 10, opacity: 0.55, marginTop: 8 }}
+        >
+          render error: {evalu.errorMessage}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const CATEGORY_LABELS = {
+  L: "Layout",
+  C: "Colors",
+  M: "Mobile",
+  I: "Interactivity",
+} as const;
 
 function ViewportSnap({
   splitRef,

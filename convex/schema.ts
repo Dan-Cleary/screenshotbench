@@ -42,6 +42,29 @@ export default defineSchema({
     errorMessage: v.optional(v.string()),
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    evaluation: v.optional(
+      v.object({
+        scoredAt: v.number(),
+        rubricVersion: v.string(),
+        total: v.number(),
+        categories: v.array(
+          v.object({
+            key: v.string(),
+            passed: v.number(),
+            total: v.number(),
+            checks: v.array(
+              v.object({
+                id: v.string(),
+                label: v.string(),
+                passed: v.boolean(),
+                detail: v.optional(v.string()),
+              }),
+            ),
+          }),
+        ),
+        errorMessage: v.optional(v.string()),
+      }),
+    ),
   })
     .index("by_batch", ["batchId"])
     .index("by_reference_and_model", ["referenceId", "modelId"])
