@@ -45,6 +45,18 @@ export type CheckKind =
       yToleranceFraction?: number;
     }
   | {
+      kind: "tiersByTextCount";
+      tierNames: string[];
+      minMatched?: number;
+    }
+  | {
+      kind: "tiersByTextAligned";
+      tierNames: string[];
+      minMatched?: number;
+      width?: number;
+      yToleranceFraction?: number;
+    }
+  | {
       kind: "noHorizontalScrollAt";
       width: number;
     }

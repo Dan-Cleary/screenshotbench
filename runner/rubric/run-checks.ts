@@ -111,7 +111,7 @@ async function dispatch(page: Page, check: Check): Promise<CheckOutcome> {
         check.selector,
         (els, args) => {
           const props = args.props as ("color" | "backgroundColor" | "borderColor")[];
-          return els.slice(0, 50).flatMap((el) => {
+          return els.slice(0, 500).flatMap((el) => {
             const style = getComputedStyle(el);
             return props.map((p) => style[p] as string);
           });
@@ -169,6 +169,45 @@ async function dispatch(page: Page, check: Check): Promise<CheckOutcome> {
       return {
         passed,
         detail: `matched ${result.matched} candidate(s); largest aligned row = ${result.best} (need ≥${check.minCount})`,
+      };
+    }
+    case "tiersByTextCount": {
+      await page.setViewportSize({ width: 1280, height: 853 });
+      await page.waitForTimeout(150);
+      const matched = await findTierCards(page, check.tierNames);
+      const minMatched = check.minMatched ?? check.tierNames.length;
+      return {
+        passed: matched.length >= minMatched,
+        detail: `found ${matched.length}/${check.tierNames.length} tier(s): [${matched
+          .map((m) => m.name)
+          .join(", ")}]`,
+      };
+    }
+    case "tiersByTextAligned": {
+      await page.setViewportSize({ width: check.width ?? 1280, height: 853 });
+      await page.waitForTimeout(150);
+      const matched = await findTierCards(page, check.tierNames);
+      const minMatched = check.minMatched ?? check.tierNames.length;
+      if (matched.length < minMatched) {
+        return {
+          passed: false,
+          detail: `only matched ${matched.length}/${check.tierNames.length} tiers; can't check alignment`,
+        };
+      }
+      const tol =
+        853 * (check.yToleranceFraction ?? 0.05);
+      let best = 0;
+      for (let i = 0; i < matched.length; i++) {
+        let n = 1;
+        for (let j = 0; j < matched.length; j++) {
+          if (i === j) continue;
+          if (Math.abs(matched[i].top - matched[j].top) <= tol) n++;
+        }
+        if (n > best) best = n;
+      }
+      return {
+        passed: best >= minMatched,
+        detail: `matched ${matched.length} tier card(s); largest aligned row = ${best} (need ≥${minMatched})`,
       };
     }
     case "noHorizontalScrollAt": {
@@ -273,6 +312,60 @@ async function dispatch(page: Page, check: Check): Promise<CheckOutcome> {
       return before !== after;
     }
   }
+}
+
+/**
+ * Identify "tier cards" by content rather than class names. For each requested
+ * tier name (e.g. "Free", "Pro", "Team", "Enterprise") we look for the
+ * smallest visible element that contains the tier name as exact text *and* has
+ * card-like dimensions — wide enough to be a real container, not the inline
+ * label inside a card. Returns one match per tier name (or none).
+ */
+async function findTierCards(
+  page: import("playwright").Page,
+  tierNames: string[],
+): Promise<{ name: string; top: number; left: number; width: number; height: number }[]> {
+  const script = `
+    ((names) => {
+      const out = [];
+      for (const name of names) {
+        const target = name.toLowerCase();
+        const all = Array.from(document.querySelectorAll("*"));
+        const labels = all.filter((el) => {
+          const text = (el.textContent || "").trim().toLowerCase();
+          if (text !== target) return false;
+          return Array.from(el.children).every(
+            (c) => (c.textContent || "").trim().toLowerCase() !== target,
+          );
+        });
+        let best = null;
+        for (const lbl of labels) {
+          let cur = lbl;
+          while (cur && cur !== document.body) {
+            const r = cur.getBoundingClientRect();
+            if (r.width >= 140 && r.height >= 180) break;
+            cur = cur.parentElement;
+          }
+          if (!cur || cur === document.body) continue;
+          const r = cur.getBoundingClientRect();
+          const area = r.width * r.height;
+          if (!best || area < best.area) best = { el: cur, area };
+        }
+        if (best) {
+          const r = best.el.getBoundingClientRect();
+          out.push({ name, top: r.top, left: r.left, width: r.width, height: r.height });
+        }
+      }
+      return out;
+    })
+  `;
+  return (await page.evaluate(`(${script})(${JSON.stringify(tierNames)})`)) as {
+    name: string;
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  }[];
 }
 
 const ROLE_SELECTORS: Record<string, string> = {
