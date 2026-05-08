@@ -129,12 +129,22 @@ function Masthead() {
       >
         <span
           style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
             fontSize: 24,
             fontWeight: 600,
             letterSpacing: "-0.015em",
             fontStyle: "italic",
           }}
         >
+          <img
+            src="/mascot.png"
+            alt=""
+            width="56"
+            height="38"
+            style={{ display: "block" }}
+          />
           screenshotbench
         </span>
         <a
