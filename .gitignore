@@ -34,3 +34,4 @@ spike/output/
 # convex generated
 convex/_generated/
 .gstack/
+.vercel
