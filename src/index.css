@@ -92,3 +92,6 @@ a {
   min-height: 0 !important;
   border-radius: 0 !important;
 }
+.sp-modal-preview .sp-preview-actions {
+  display: none !important;
+}

@@ -602,10 +602,6 @@ function DetailModal({
 }) {
   const { ref, model, run } = selection;
   const files = run.files ?? [];
-  const entry =
-    files.find((f) => f.path === "Component.tsx") ??
-    files.find((f) => f.path.endsWith(".tsx")) ??
-    files[0];
 
   return (
     <div
@@ -750,35 +746,6 @@ function DetailModal({
                 }}
               />
             )}
-            <div
-              className="mono"
-              style={{
-                fontSize: 10,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                opacity: 0.55,
-                marginTop: 8,
-              }}
-            >
-              generated source · {files.length} file{files.length === 1 ? "" : "s"}
-            </div>
-            <pre
-              className="mono"
-              style={{
-                fontSize: 11,
-                lineHeight: 1.5,
-                background: "#fff",
-                border: "1px solid var(--border-tile)",
-                padding: 12,
-                margin: 0,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                overflow: "auto",
-                maxHeight: 360,
-              }}
-            >
-              {entry?.content ?? "(no code)"}
-            </pre>
           </section>
 
           <section
