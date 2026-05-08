@@ -1,6 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "convex/react";
-import { Sandpack } from "@codesandbox/sandpack-react";
+import {
+  Sandpack,
+  SandpackProvider,
+  SandpackPreview,
+  SandpackLayout,
+} from "@codesandbox/sandpack-react";
 import { api } from "../convex/_generated/api";
 import type { Doc } from "../convex/_generated/dataModel";
 
@@ -11,46 +16,17 @@ type Selection = {
   run: Doc<"runs">;
 };
 
-// Sandpack content: scale-to-fit thumbnail of the generated component.
-// Component renders at virtual 1280×853 (3:2), then we transform-scale the
-// whole frame down to fit the tile so the full UI is visible at a glance.
-const SCALED_APP_WRAPPER = `import Component from "./Component";
-import { useEffect, useState } from "react";
+// Thumbnail scaling: we render the Sandpack iframe at a real 1280×853
+// viewport (so window.innerWidth === 1280 inside the iframe and viewport-based
+// media queries evaluate as desktop), then CSS-transform-scale the iframe
+// element itself down to fit the tile. Every model is rendered under the same
+// desktop viewport conditions regardless of which responsive strategy it used.
+const THUMB_VW = 1280;
+const THUMB_VH = 853;
+
+const SIMPLE_APP_WRAPPER = `import Component from "./Component";
 import "./styles.css";
-
-const VW = 1280;
-const VH = 853;
-
-export default function App() {
-  const [scale, setScale] = useState(0.3);
-  useEffect(() => {
-    const update = () => {
-      const sx = window.innerWidth / VW;
-      const sy = window.innerHeight / VH;
-      setScale(Math.min(sx, sy));
-    };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  return (
-    <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#fff" }}>
-      <div
-        style={{
-          width: VW,
-          height: VH,
-          transformOrigin: "top left",
-          transform: \`scale(\${scale})\`,
-          overflow: "hidden",
-          background: "#fff",
-        }}
-      >
-        <Component />
-      </div>
-    </div>
-  );
-}
+export default function App() { return <Component />; }
 `;
 
 const SANDPACK_RESET_CSS = `html, body, #root { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
@@ -292,7 +268,7 @@ function BenchmarkRow({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 3fr",
+          gridTemplateRows: "auto auto",
           gap: 14,
         }}
       >
@@ -331,7 +307,7 @@ function ReferenceTile({
   ref_: Doc<"references"> & { screenshotUrl: string | null };
 }) {
   return (
-    <figure style={{ margin: 0 }}>
+    <figure style={{ margin: "0 auto", width: "min(100%, 720px)" }}>
       <div
         style={{
           background: "#fff",
@@ -348,8 +324,8 @@ function ReferenceTile({
             style={{
               width: "100%",
               height: "100%",
-              objectFit: "cover",
-              objectPosition: "top",
+              objectFit: "contain",
+              objectPosition: "center",
               display: "block",
             }}
           />
@@ -434,7 +410,17 @@ function AttemptTile({
             marginBottom: 4,
           }}
         >
-          <span style={{ fontWeight: 600 }}>{model.displayName}</span>
+          <span
+            style={{
+              fontFamily: "var(--serif)",
+              fontSize: 18,
+              fontWeight: 500,
+              letterSpacing: "-0.01em",
+              textTransform: "none",
+            }}
+          >
+            {model.displayName}
+          </span>
           <span style={{ opacity: 0.55 }}>
             {run?.durationMs ? `${(run.durationMs / 1000).toFixed(0)}s` : "—"}
           </span>
@@ -555,7 +541,7 @@ function SandpackTile({
     files.find((f) => f.path.endsWith(".tsx")) ??
     files[0];
   const sandpackFiles: Record<string, string> = {
-    "/App.tsx": SCALED_APP_WRAPPER,
+    "/App.tsx": SIMPLE_APP_WRAPPER,
     "/Component.tsx": entry.content,
     "/styles.css": SANDPACK_RESET_CSS,
     "/index.tsx": SANDPACK_INDEX,
@@ -564,31 +550,56 @@ function SandpackTile({
     if (f.path !== entry.path) sandpackFiles[`/${f.path}`] = f.content;
   }
 
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(0.2);
+  useEffect(() => {
+    const el = outerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w === 0 || h === 0) return;
+      setScale(Math.min(w / THUMB_VW, h / THUMB_VH));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
     <div
+      ref={outerRef}
       style={{
         position: "absolute",
         inset: 0,
-        // Sandpack's preview iframe should fill the tile. We render only the
-        // preview (no editor) and rely on Sandpack's auto-scaling.
+        overflow: "hidden",
+        pointerEvents: "none",
       }}
     >
-      <Sandpack
-        template="react-ts"
-        files={sandpackFiles}
-        options={{
-          showNavigator: false,
-          showTabs: false,
-          showLineNumbers: false,
-          showConsoleButton: false,
-          editorHeight: "100%",
-          editorWidthPercentage: 0,
-          classes: {
-            "sp-wrapper": "sp-tile-wrapper",
-            "sp-preview": "sp-tile-preview",
-          },
+      <div
+        style={{
+          width: THUMB_VW,
+          height: THUMB_VH,
+          transformOrigin: "top left",
+          transform: `scale(${scale})`,
         }}
-      />
+      >
+        <Sandpack
+          template="react-ts"
+          files={sandpackFiles}
+          options={{
+            showNavigator: false,
+            showTabs: false,
+            showLineNumbers: false,
+            showConsoleButton: false,
+            editorHeight: THUMB_VH,
+            editorWidthPercentage: 0,
+            classes: {
+              "sp-wrapper": "sp-tile-wrapper",
+              "sp-preview": "sp-tile-preview",
+            },
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -602,6 +613,29 @@ function DetailModal({
 }) {
   const { ref, model, run } = selection;
   const files = run.files ?? [];
+  const splitRef = useRef<HTMLDivElement | null>(null);
+  const [leftPct, setLeftPct] = useState(0.5);
+  const dragging = useRef(false);
+
+  useEffect(() => {
+    function onMove(e: PointerEvent) {
+      if (!dragging.current || !splitRef.current) return;
+      const rect = splitRef.current.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      setLeftPct(Math.min(0.85, Math.max(0.15, pct)));
+    }
+    function onUp() {
+      dragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, []);
 
   return (
     <div
@@ -641,17 +675,6 @@ function DetailModal({
           }}
         >
           <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-            <span
-              className="mono"
-              style={{
-                fontSize: 11,
-                letterSpacing: "0.12em",
-                color: "var(--accent)",
-                fontWeight: 600,
-              }}
-            >
-              № {ref.slug}
-            </span>
             <h2
               style={{
                 margin: 0,
@@ -686,36 +709,44 @@ function DetailModal({
               {run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : ""}
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="mono"
-            style={{
-              background: "transparent",
-              border: "1px solid var(--ink)",
-              padding: "4px 10px",
-              fontSize: 11,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-              color: "var(--ink)",
-            }}
-          >
-            close (esc)
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ViewportSnap
+              splitRef={splitRef}
+              setLeftPct={setLeftPct}
+            />
+            <button
+              onClick={onClose}
+              className="mono"
+              style={{
+                background: "transparent",
+                border: "1px solid var(--ink)",
+                padding: "4px 10px",
+                fontSize: 11,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                color: "var(--ink)",
+              }}
+            >
+              close (esc)
+            </button>
+          </div>
         </header>
 
         <div
+          ref={splitRef}
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 1,
+            display: "flex",
             background: "var(--rule)",
             overflow: "hidden",
             minHeight: 0,
+            position: "relative",
           }}
         >
           <section
             style={{
+              flexBasis: `${leftPct * 100}%`,
+              flexShrink: 0,
               background: "var(--bg-paper)",
               padding: 16,
               overflow: "auto",
@@ -748,17 +779,83 @@ function DetailModal({
             )}
           </section>
 
+          <div
+            onPointerDown={(e) => {
+              dragging.current = true;
+              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+            style={{
+              flex: "0 0 6px",
+              cursor: "col-resize",
+              background: "var(--rule)",
+              position: "relative",
+              zIndex: 1,
+            }}
+            title="Drag to resize"
+          />
           <section
             style={{
+              flex: 1,
               background: "#fff",
               minHeight: 0,
+              minWidth: 0,
               position: "relative",
+              overflow: "hidden",
             }}
           >
             <ModalSandpack files={files} />
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ViewportSnap({
+  splitRef,
+  setLeftPct,
+}: {
+  splitRef: React.RefObject<HTMLDivElement | null>;
+  setLeftPct: (pct: number) => void;
+}) {
+  function snapToWidth(targetPx: number | null) {
+    if (!splitRef.current) return;
+    const total = splitRef.current.getBoundingClientRect().width;
+    if (targetPx === null) {
+      setLeftPct(0.5);
+      return;
+    }
+    const leftPx = total - targetPx;
+    setLeftPct(Math.min(0.85, Math.max(0.15, leftPx / total)));
+  }
+  const presets: { label: string; px: number | null }[] = [
+    { label: "desktop", px: 1280 },
+    { label: "tablet", px: 768 },
+    { label: "mobile", px: 390 },
+  ];
+  return (
+    <div style={{ display: "flex", gap: 4, marginRight: 8 }}>
+      {presets.map((p) => (
+        <button
+          key={p.label}
+          onClick={() => snapToWidth(p.px)}
+          className="mono"
+          style={{
+            background: "transparent",
+            border: "1px solid var(--rule)",
+            padding: "4px 10px",
+            fontSize: 10,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+            color: "var(--ink)",
+          }}
+        >
+          {p.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -777,22 +874,41 @@ function ModalSandpack({ files }: { files: RunFiles }) {
     if (f.path !== entry.path) sandpackFiles[`/${f.path}`] = f.content;
   }
   return (
-    <div style={{ position: "absolute", inset: 0 }}>
-      <Sandpack
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "#fff",
+        display: "flex",
+      }}
+    >
+      <SandpackProvider
         template="react-ts"
         files={sandpackFiles}
-        options={{
-          showNavigator: true,
-          showTabs: false,
-          showLineNumbers: false,
-          editorHeight: "100%",
-          editorWidthPercentage: 0,
-          classes: {
-            "sp-wrapper": "sp-modal-wrapper",
-            "sp-preview": "sp-modal-preview",
-          },
-        }}
-      />
+        style={{ flex: 1, display: "flex", minWidth: 0 }}
+      >
+        <SandpackLayout
+          style={{
+            border: "none",
+            borderRadius: 0,
+            flex: 1,
+            height: "100%",
+            minWidth: 0,
+          }}
+        >
+          <SandpackPreview
+            showNavigator={true}
+            showOpenInCodeSandbox={false}
+            showRefreshButton={true}
+            style={{
+              flex: 1,
+              height: "100%",
+              minWidth: 0,
+              border: "none",
+            }}
+          />
+        </SandpackLayout>
+      </SandpackProvider>
     </div>
   );
 }

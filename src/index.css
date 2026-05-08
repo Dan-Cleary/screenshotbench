@@ -70,9 +70,10 @@ a {
 .sp-tile-preview .sp-preview-actions {
   display: none !important;
 }
-/* Thumbnail iframes are non-interactive — click bubbles to the tile to open
-   the detail modal. The modal mounts an unscaled, fully interactive Sandpack. */
-.sp-tile-preview iframe {
+/* Thumbnail Sandpack is non-interactive — clicks and hover bubble to the tile
+   wrapper so the cursor stays a pointer and the modal opens on click. */
+.sp-tile-wrapper,
+.sp-tile-wrapper * {
   pointer-events: none !important;
 }
 
