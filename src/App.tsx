@@ -77,14 +77,14 @@ export default function App() {
     <>
       <div className="paper-grain" />
       <div style={{ position: "relative", zIndex: 1 }}>
-        <Masthead today={today} />
+        <Masthead />
         <SubBanner
           refs={refs.length}
           models={enabledModels.length}
           attempts={totalAttempts}
           today={today}
         />
-        <section style={{ padding: "20px 48px 48px" }}>
+        <section className="page-gutter" style={{ padding: "20px 48px 48px" }}>
           {refs.map((ref, i) => (
             <BenchmarkRow
               key={ref._id}
@@ -109,9 +109,10 @@ export default function App() {
   );
 }
 
-function Masthead({ today }: { today: string }) {
+function Masthead() {
   return (
     <header
+      className="masthead"
       style={{
         padding: "20px 48px 14px",
         borderBottom: "1px solid var(--ink)",
@@ -122,37 +123,50 @@ function Masthead({ today }: { today: string }) {
           display: "flex",
           alignItems: "baseline",
           justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-          <span
-            style={{
-              fontSize: 24,
-              fontWeight: 600,
-              letterSpacing: "-0.015em",
-              fontStyle: "italic",
-            }}
-          >
-            screenshotbench
-          </span>
-          <span
-            className="mono"
-            style={{ fontSize: 10, opacity: 0.5, letterSpacing: "0.08em" }}
-          >
-            VOL. 1 · {today.split(".").slice(1).join(".")}
-          </span>
-        </div>
-        <nav
-          className="mono"
-          style={{ display: "flex", gap: 22, fontSize: 12, letterSpacing: "0.04em" }}
+        <span
+          style={{
+            fontSize: 24,
+            fontWeight: 600,
+            letterSpacing: "-0.015em",
+            fontStyle: "italic",
+          }}
         >
-          <a style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>Catalog</a>
-          <a style={{ opacity: 0.55 }}>Leaderboard</a>
-          <a style={{ opacity: 0.55 }}>About</a>
-          <a style={{ opacity: 0.55 }}>Submit</a>
-        </nav>
+          screenshotbench
+        </span>
+        <a
+          href="https://github.com/Dan-Cleary/screenshotbench"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="View source on GitHub"
+          className="mono"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 11,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--ink)",
+            textDecoration: "none",
+          }}
+        >
+          <GitHubIcon />
+          <span>github</span>
+        </a>
       </div>
     </header>
+  );
+}
+
+function GitHubIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.729.083-.729 1.205.084 1.84 1.236 1.84 1.236 1.07 1.835 2.807 1.305 3.492.998.108-.776.418-1.305.762-1.605-2.665-.305-5.467-1.332-5.467-5.93 0-1.31.467-2.38 1.235-3.22-.135-.302-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.874.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+    </svg>
   );
 }
 
@@ -169,7 +183,7 @@ function SubBanner({
 }) {
   return (
     <div
-      className="mono"
+      className="mono page-gutter"
       style={{
         display: "grid",
         gridTemplateColumns: "1fr auto",
@@ -183,8 +197,8 @@ function SubBanner({
       }}
     >
       <span>
-        {refs} benchmarks · {models} models · {attempts} attempts · graded on
-        layout · color · mobile · interactivity
+        {refs} benchmarks · {models} models · {attempts} attempts · judged on
+        layout · palette · polish · completeness
       </span>
       <span>upd. {today}</span>
     </div>
@@ -219,8 +233,9 @@ function BenchmarkRow({
         style={{
           display: "flex",
           alignItems: "baseline",
-          gap: 24,
+          gap: 14,
           marginBottom: 14,
+          flexWrap: "wrap",
         }}
       >
         <span
@@ -266,13 +281,7 @@ function BenchmarkRow({
         }}
       >
         <ReferenceTile ref_={ref_} />
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 14,
-          }}
-        >
+        <div className="bench-row-grid">
           {models.map((m) => {
             const run = runByCell.get(`${ref_._id}:${m._id}`);
             return (
@@ -1021,19 +1030,32 @@ function ModalSandpack({ files }: { files: RunFiles }) {
 function Footer() {
   return (
     <footer
-      className="mono"
+      className="mono page-gutter"
       style={{
         padding: "20px 48px 32px",
         borderTop: "1px solid var(--rule)",
         fontSize: 10,
         letterSpacing: "0.08em",
-        opacity: 0.5,
         display: "flex",
         justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 12,
       }}
     >
-      <span>SCREENSHOTBENCH · OPEN BENCHMARK</span>
-      <span>VIA CURSOR SDK</span>
+      <span style={{ opacity: 0.5 }}>SCREENSHOTBENCH · OPEN BENCHMARK</span>
+      <span style={{ opacity: 0.7 }}>
+        BUILT BY{" "}
+        <a
+          href="https://x.com/danjcleary"
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: "var(--ink)", textDecoration: "underline", textUnderlineOffset: 3 }}
+        >
+          DAN CLEARY
+        </a>
+        {" · "}
+        VIA CURSOR SDK
+      </span>
     </footer>
   );
 }

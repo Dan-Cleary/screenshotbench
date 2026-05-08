@@ -5,6 +5,12 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     const refs = await ctx.db.query("references").take(100);
+    refs.sort((a, b) => {
+      const ao = a.displayOrder ?? 9999;
+      const bo = b.displayOrder ?? 9999;
+      if (ao !== bo) return ao - bo;
+      return a.addedAt - b.addedAt;
+    });
     return await Promise.all(
       refs.map(async (r) => ({
         ...r,
@@ -18,6 +24,30 @@ export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const setDisplayOrder = mutation({
+  args: { referenceId: v.id("references"), displayOrder: v.number() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.referenceId, { displayOrder: args.displayOrder });
+  },
+});
+
+export const remove = mutation({
+  args: { referenceId: v.id("references") },
+  handler: async (ctx, args) => {
+    const ref = await ctx.db.get(args.referenceId);
+    if (!ref) return;
+    const runs = await ctx.db
+      .query("runs")
+      .withIndex("by_reference_and_model", (q) =>
+        q.eq("referenceId", args.referenceId),
+      )
+      .collect();
+    for (const r of runs) await ctx.db.delete(r._id);
+    await ctx.storage.delete(ref.screenshotStorageId);
+    await ctx.db.delete(args.referenceId);
   },
 });
 

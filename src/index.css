@@ -96,3 +96,33 @@ a {
 .sp-modal-preview .sp-preview-actions {
   display: none !important;
 }
+
+/* Mobile responsiveness — collapse fixed gutters and the 3×2 model grid. */
+.bench-row-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 720px) {
+  header.masthead,
+  .page-gutter {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+  .bench-row-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .bench-row-grid + .bench-row-grid,
+  .bench-row .ref-tile-wrap {
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .bench-row-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

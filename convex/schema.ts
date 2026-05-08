@@ -8,6 +8,7 @@ export default defineSchema({
     category: v.string(),
     screenshotStorageId: v.id("_storage"),
     addedAt: v.number(),
+    displayOrder: v.optional(v.number()),
   }).index("by_slug", ["slug"]),
 
   models: defineTable({
