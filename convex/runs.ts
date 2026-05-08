@@ -84,6 +84,37 @@ export const markComplete = mutation({
   },
 });
 
+export const setJudge = mutation({
+  args: {
+    runId: v.id("runs"),
+    model: v.string(),
+    score: v.number(),
+    reasoning: v.string(),
+    dimensions: v.optional(
+      v.array(
+        v.object({
+          key: v.string(),
+          score: v.number(),
+          note: v.optional(v.string()),
+        }),
+      ),
+    ),
+    errorMessage: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.runId, {
+      judge: {
+        scoredAt: Date.now(),
+        model: args.model,
+        score: args.score,
+        reasoning: args.reasoning,
+        dimensions: args.dimensions,
+        errorMessage: args.errorMessage,
+      },
+    });
+  },
+});
+
 export const setEvaluation = mutation({
   args: {
     runId: v.id("runs"),

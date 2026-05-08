@@ -42,13 +42,6 @@ createRoot(document.getElementById("root")).render(
 );
 `;
 
-const RUBRIC = [
-  { k: "layout", l: "L" },
-  { k: "colors", l: "C" },
-  { k: "mobile", l: "M" },
-  { k: "interactivity", l: "I" },
-] as const;
-
 export default function App() {
   const refs = useQuery(api.references.list);
   const models = useQuery(api.models.list, {});
@@ -425,42 +418,7 @@ function AttemptTile({
             {run?.durationMs ? `${(run.durationMs / 1000).toFixed(0)}s` : "—"}
           </span>
         </div>
-        <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-          {RUBRIC.map((row) => {
-            const cat = run?.evaluation?.categories.find(
-              (c) => c.key === row.l,
-            );
-            const ratio =
-              cat && cat.total > 0 ? cat.passed / cat.total : 0;
-            return (
-              <div key={row.k} style={{ flex: 1 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: 9,
-                    marginBottom: 2,
-                    opacity: 0.7,
-                  }}
-                >
-                  <span>{row.l}</span>
-                  <span className="tabular" style={{ fontWeight: 600 }}>
-                    {cat ? `${cat.passed}/${cat.total}` : "—"}
-                  </span>
-                </div>
-                <div style={{ height: 2, background: "var(--track)" }}>
-                  <div
-                    style={{
-                      width: `${ratio * 100}%`,
-                      height: "100%",
-                      background: "var(--accent)",
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <JudgeMeter run={run} />
       </figcaption>
     </figure>
   );
@@ -517,7 +475,7 @@ function TileEmpty({
 
 function ScoreBadge({ run }: { run: Doc<"runs"> | undefined }) {
   if (run?.status !== "complete") return null;
-  const score = run.evaluation?.total;
+  const score = run.judge?.score;
   return (
     <div
       className="mono tabular"
@@ -787,7 +745,7 @@ function DetailModal({
                 }}
               />
             )}
-            <RubricBreakdown run={run} />
+            <JudgeBreakdown run={run} />
           </section>
 
           <div
@@ -824,9 +782,62 @@ function DetailModal({
   );
 }
 
-function RubricBreakdown({ run }: { run: Doc<"runs"> }) {
-  const evalu = run.evaluation;
-  if (!evalu) {
+function JudgeMeter({ run }: { run: Doc<"runs"> | undefined }) {
+  const dims = run?.judge?.dimensions;
+  if (!dims || dims.length === 0) {
+    return (
+      <div
+        className="mono"
+        style={{
+          fontSize: 9,
+          marginTop: 6,
+          opacity: 0.55,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}
+      >
+        not yet judged
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+      {dims.map((d) => (
+        <div key={d.key} style={{ flex: 1 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 9,
+              marginBottom: 2,
+              opacity: 0.7,
+            }}
+          >
+            <span style={{ textTransform: "uppercase" }}>
+              {d.key.charAt(0).toUpperCase()}
+            </span>
+            <span className="tabular" style={{ fontWeight: 600 }}>
+              {d.score}
+            </span>
+          </div>
+          <div style={{ height: 2, background: "var(--track)" }}>
+            <div
+              style={{
+                width: `${(d.score / 25) * 100}%`,
+                height: "100%",
+                background: "var(--accent)",
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function JudgeBreakdown({ run }: { run: Doc<"runs"> }) {
+  const j = run.judge;
+  if (!j) {
     return (
       <div
         className="mono"
@@ -838,7 +849,7 @@ function RubricBreakdown({ run }: { run: Doc<"runs"> }) {
           marginTop: 8,
         }}
       >
-        rubric · not yet scored
+        judge · not yet scored
       </div>
     );
   }
@@ -856,104 +867,56 @@ function RubricBreakdown({ run }: { run: Doc<"runs"> }) {
           justifyContent: "space-between",
         }}
       >
-        <span>rubric · v{evalu.rubricVersion}</span>
+        <span>judge · {j.model}</span>
         <span className="tabular">
           <span style={{ color: "var(--accent)", fontWeight: 600 }}>
-            {evalu.total}
+            {j.score}
           </span>
           <span style={{ opacity: 0.5 }}>/100</span>
         </span>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {evalu.categories.map((cat) => (
-          <div key={cat.key}>
-            <div
-              className="mono"
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: 10,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                opacity: 0.7,
-                marginBottom: 4,
-              }}
-            >
-              <span>
-                {cat.key} ·{" "}
-                {CATEGORY_LABELS[cat.key as keyof typeof CATEGORY_LABELS] ??
-                  cat.key}
-              </span>
-              <span className="tabular" style={{ fontWeight: 600 }}>
-                {cat.passed}/{cat.total}
-              </span>
+      <p style={{ margin: "0 0 12px 0", fontSize: 13, lineHeight: 1.5 }}>
+        {j.reasoning}
+      </p>
+      {j.dimensions && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {j.dimensions.map((d) => (
+            <div key={d.key}>
+              <div
+                className="mono"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  opacity: 0.7,
+                  marginBottom: 2,
+                }}
+              >
+                <span>{d.key}</span>
+                <span className="tabular" style={{ fontWeight: 600 }}>
+                  {d.score}/25
+                </span>
+              </div>
+              {d.note && (
+                <div style={{ fontSize: 12, opacity: 0.8 }}>{d.note}</div>
+              )}
             </div>
-            <ul
-              style={{
-                listStyle: "none",
-                padding: 0,
-                margin: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: 2,
-              }}
-            >
-              {cat.checks.map((c) => (
-                <li
-                  key={c.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 8,
-                    fontSize: 12,
-                    color: c.passed ? "var(--ink)" : "var(--ink-faint)",
-                    opacity: c.passed ? 1 : 0.7,
-                  }}
-                >
-                  <span
-                    className="mono"
-                    style={{
-                      fontSize: 10,
-                      width: 14,
-                      color: c.passed ? "var(--accent)" : "var(--ink-faint)",
-                    }}
-                  >
-                    {c.passed ? "✓" : "✗"}
-                  </span>
-                  <span style={{ flex: 1 }}>{c.label}</span>
-                  {c.detail && (
-                    <span
-                      className="mono"
-                      style={{ fontSize: 10, opacity: 0.5 }}
-                      title={c.detail}
-                    >
-                      ⓘ
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-      {evalu.errorMessage && (
+          ))}
+        </div>
+      )}
+      {j.errorMessage && (
         <div
           className="mono"
           style={{ fontSize: 10, opacity: 0.55, marginTop: 8 }}
         >
-          render error: {evalu.errorMessage}
+          error: {j.errorMessage}
         </div>
       )}
     </div>
   );
 }
-
-const CATEGORY_LABELS = {
-  L: "Layout",
-  C: "Colors",
-  M: "Mobile",
-  I: "Interactivity",
-} as const;
 
 function ViewportSnap({
   splitRef,

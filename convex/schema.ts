@@ -42,6 +42,24 @@ export default defineSchema({
     errorMessage: v.optional(v.string()),
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    judge: v.optional(
+      v.object({
+        scoredAt: v.number(),
+        model: v.string(),
+        score: v.number(),
+        reasoning: v.string(),
+        dimensions: v.optional(
+          v.array(
+            v.object({
+              key: v.string(),
+              score: v.number(),
+              note: v.optional(v.string()),
+            }),
+          ),
+        ),
+        errorMessage: v.optional(v.string()),
+      }),
+    ),
     evaluation: v.optional(
       v.object({
         scoredAt: v.number(),
