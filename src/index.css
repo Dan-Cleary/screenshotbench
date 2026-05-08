@@ -70,3 +70,25 @@ a {
 .sp-tile-preview .sp-preview-actions {
   display: none !important;
 }
+/* Thumbnail iframes are non-interactive — click bubbles to the tile to open
+   the detail modal. The modal mounts an unscaled, fully interactive Sandpack. */
+.sp-tile-preview iframe {
+  pointer-events: none !important;
+}
+
+/* Modal Sandpack — full-size, interactive, fills its column. */
+.sp-modal-wrapper,
+.sp-modal-wrapper > .sp-layout {
+  height: 100% !important;
+  width: 100% !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+.sp-modal-preview,
+.sp-modal-preview > .sp-preview-container,
+.sp-modal-preview iframe {
+  height: 100% !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+}

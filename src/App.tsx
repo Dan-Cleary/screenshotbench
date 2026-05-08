@@ -1,7 +1,15 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import { Sandpack } from "@codesandbox/sandpack-react";
 import { api } from "../convex/_generated/api";
 import type { Doc } from "../convex/_generated/dataModel";
+
+type RunFiles = { path: string; content: string }[];
+type Selection = {
+  ref: Doc<"references"> & { screenshotUrl: string | null };
+  model: Doc<"models">;
+  run: Doc<"runs">;
+};
 
 // Sandpack content: scale-to-fit thumbnail of the generated component.
 // Component renders at virtual 1280×853 (3:2), then we transform-scale the
@@ -69,6 +77,16 @@ export default function App() {
   const refs = useQuery(api.references.list);
   const models = useQuery(api.models.list, {});
   const matrix = useQuery(api.runs.matrix);
+  const [selection, setSelection] = useState<Selection | null>(null);
+
+  useEffect(() => {
+    if (!selection) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelection(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selection]);
 
   if (!refs || !models || !matrix)
     return (
@@ -106,11 +124,18 @@ export default function App() {
               total={refs.length}
               models={enabledModels}
               runByCell={runByCell}
+              onSelect={(model, run) => setSelection({ ref, model, run })}
             />
           ))}
         </section>
         <Footer />
       </div>
+      {selection && (
+        <DetailModal
+          selection={selection}
+          onClose={() => setSelection(null)}
+        />
+      )}
     </>
   );
 }
@@ -203,12 +228,14 @@ function BenchmarkRow({
   total,
   models,
   runByCell,
+  onSelect,
 }: {
   ref_: Doc<"references"> & { screenshotUrl: string | null };
   index: number;
   total: number;
   models: Doc<"models">[];
   runByCell: Map<string, Doc<"runs">>;
+  onSelect: (model: Doc<"models">, run: Doc<"runs">) => void;
 }) {
   const num = String(index + 1).padStart(3, "0");
   return (
@@ -277,13 +304,21 @@ function BenchmarkRow({
             gap: 14,
           }}
         >
-          {models.map((m) => (
-            <AttemptTile
-              key={m._id}
-              model={m}
-              run={runByCell.get(`${ref_._id}:${m._id}`)}
-            />
-          ))}
+          {models.map((m) => {
+            const run = runByCell.get(`${ref_._id}:${m._id}`);
+            return (
+              <AttemptTile
+                key={m._id}
+                model={m}
+                run={run}
+                onSelect={
+                  run && run.status === "complete" && run.files?.length
+                    ? () => onSelect(m, run)
+                    : undefined
+                }
+              />
+            );
+          })}
         </div>
       </div>
     </article>
@@ -342,20 +377,37 @@ function ReferenceTile({
 function AttemptTile({
   model,
   run,
+  onSelect,
 }: {
   model: Doc<"models">;
   run: Doc<"runs"> | undefined;
+  onSelect?: () => void;
 }) {
   const status = run?.status;
+  const interactive = onSelect !== undefined;
   return (
     <figure style={{ margin: 0 }}>
       <div
+        onClick={onSelect}
+        role={interactive ? "button" : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        onKeyDown={
+          interactive
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect?.();
+                }
+              }
+            : undefined
+        }
         style={{
           background: "#fff",
           border: "1px solid var(--border-tile)",
           aspectRatio: "3 / 2",
           overflow: "hidden",
           position: "relative",
+          cursor: interactive ? "pointer" : "default",
         }}
       >
         {status === "complete" && run?.files && run.files.length > 0 ? (
@@ -534,6 +586,243 @@ function SandpackTile({
           classes: {
             "sp-wrapper": "sp-tile-wrapper",
             "sp-preview": "sp-tile-preview",
+          },
+        }}
+      />
+    </div>
+  );
+}
+
+function DetailModal({
+  selection,
+  onClose,
+}: {
+  selection: Selection;
+  onClose: () => void;
+}) {
+  const { ref, model, run } = selection;
+  const files = run.files ?? [];
+  const entry =
+    files.find((f) => f.path === "Component.tsx") ??
+    files.find((f) => f.path.endsWith(".tsx")) ??
+    files[0];
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(26, 22, 18, 0.85)",
+        zIndex: 100,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 32,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "var(--bg-paper)",
+          border: "1px solid var(--ink)",
+          width: "100%",
+          maxWidth: 1600,
+          height: "100%",
+          maxHeight: 900,
+          display: "grid",
+          gridTemplateRows: "auto 1fr",
+          overflow: "hidden",
+        }}
+      >
+        <header
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            padding: "16px 24px",
+            borderBottom: "1px solid var(--rule)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+            <span
+              className="mono"
+              style={{
+                fontSize: 11,
+                letterSpacing: "0.12em",
+                color: "var(--accent)",
+                fontWeight: 600,
+              }}
+            >
+              № {ref.slug}
+            </span>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 22,
+                fontWeight: 500,
+                letterSpacing: "-0.015em",
+              }}
+            >
+              {ref.name}
+              <span
+                className="mono"
+                style={{
+                  marginLeft: 12,
+                  fontSize: 11,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  opacity: 0.55,
+                }}
+              >
+                × {model.displayName}
+              </span>
+            </h2>
+            <span
+              className="mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                opacity: 0.55,
+              }}
+            >
+              {run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : ""}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="mono"
+            style={{
+              background: "transparent",
+              border: "1px solid var(--ink)",
+              padding: "4px 10px",
+              fontSize: 11,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              color: "var(--ink)",
+            }}
+          >
+            close (esc)
+          </button>
+        </header>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 1,
+            background: "var(--rule)",
+            overflow: "hidden",
+            minHeight: 0,
+          }}
+        >
+          <section
+            style={{
+              background: "var(--bg-paper)",
+              padding: 16,
+              overflow: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <div
+              className="mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                opacity: 0.55,
+              }}
+            >
+              reference · ground truth
+            </div>
+            {ref.screenshotUrl && (
+              <img
+                src={ref.screenshotUrl}
+                alt={ref.name}
+                style={{
+                  width: "100%",
+                  border: "1px solid var(--border-tile)",
+                  display: "block",
+                }}
+              />
+            )}
+            <div
+              className="mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                opacity: 0.55,
+                marginTop: 8,
+              }}
+            >
+              generated source · {files.length} file{files.length === 1 ? "" : "s"}
+            </div>
+            <pre
+              className="mono"
+              style={{
+                fontSize: 11,
+                lineHeight: 1.5,
+                background: "#fff",
+                border: "1px solid var(--border-tile)",
+                padding: 12,
+                margin: 0,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                overflow: "auto",
+                maxHeight: 360,
+              }}
+            >
+              {entry?.content ?? "(no code)"}
+            </pre>
+          </section>
+
+          <section
+            style={{
+              background: "#fff",
+              minHeight: 0,
+              position: "relative",
+            }}
+          >
+            <ModalSandpack files={files} />
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalSandpack({ files }: { files: RunFiles }) {
+  const entry =
+    files.find((f) => f.path === "Component.tsx") ??
+    files.find((f) => f.path.endsWith(".tsx")) ??
+    files[0];
+  if (!entry) return null;
+  const sandpackFiles: Record<string, string> = {
+    "/App.tsx": `import Component from "./Component";\nexport default function App() { return <Component />; }`,
+    "/Component.tsx": entry.content,
+  };
+  for (const f of files) {
+    if (f.path !== entry.path) sandpackFiles[`/${f.path}`] = f.content;
+  }
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <Sandpack
+        template="react-ts"
+        files={sandpackFiles}
+        options={{
+          showNavigator: true,
+          showTabs: false,
+          showLineNumbers: false,
+          editorHeight: "100%",
+          editorWidthPercentage: 0,
+          classes: {
+            "sp-wrapper": "sp-modal-wrapper",
+            "sp-preview": "sp-modal-preview",
           },
         }}
       />
