@@ -141,8 +141,8 @@ function Masthead() {
           <img
             src="/mascot.png"
             alt=""
-            width="56"
-            height="38"
+            width="80"
+            height="54"
             style={{ display: "block" }}
           />
           screenshotbench
