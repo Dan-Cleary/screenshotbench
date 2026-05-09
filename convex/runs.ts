@@ -11,7 +11,15 @@ export const matrix = query({
       const key = `${r.referenceId}:${r.modelId}`;
       if (!latestByCell.has(key)) latestByCell.set(key, r);
     }
-    return { runs: Array.from(latestByCell.values()) };
+    const runs = await Promise.all(
+      Array.from(latestByCell.values()).map(async (r) => ({
+        ...r,
+        previewUrl: r.previewStorageId
+          ? await ctx.storage.getUrl(r.previewStorageId)
+          : null,
+      })),
+    );
+    return { runs };
   },
 });
 
@@ -52,7 +60,14 @@ export const getRunWithContext = query({
     const model = await ctx.db.get(run.modelId);
     if (!ref || !model) throw new Error("reference or model missing");
     const screenshotUrl = await ctx.storage.getUrl(ref.screenshotStorageId);
-    return { run, reference: { ...ref, screenshotUrl }, model };
+    const previewUrl = run.previewStorageId
+      ? await ctx.storage.getUrl(run.previewStorageId)
+      : null;
+    return {
+      run: { ...run, previewUrl },
+      reference: { ...ref, screenshotUrl },
+      model,
+    };
   },
 });
 
@@ -81,6 +96,22 @@ export const markComplete = mutation({
       durationMs: args.durationMs,
       completedAt: Date.now(),
     });
+  },
+});
+
+export const generatePreviewUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => await ctx.storage.generateUploadUrl(),
+});
+
+export const setPreviewStorage = mutation({
+  args: { runId: v.id("runs"), storageId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    const run = await ctx.db.get(args.runId);
+    if (run?.previewStorageId) {
+      await ctx.storage.delete(run.previewStorageId);
+    }
+    await ctx.db.patch(args.runId, { previewStorageId: args.storageId });
   },
 });
 

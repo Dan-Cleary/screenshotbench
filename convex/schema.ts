@@ -43,6 +43,7 @@ export default defineSchema({
     errorMessage: v.optional(v.string()),
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    previewStorageId: v.optional(v.id("_storage")),
     judge: v.optional(
       v.object({
         scoredAt: v.number(),

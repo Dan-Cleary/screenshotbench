@@ -9,10 +9,11 @@ import { api } from "../convex/_generated/api";
 import type { Doc } from "../convex/_generated/dataModel";
 
 type RunFiles = { path: string; content: string }[];
+type RunWithPreview = Doc<"runs"> & { previewUrl?: string | null };
 type Selection = {
   ref: Doc<"references"> & { screenshotUrl: string | null };
   model: Doc<"models">;
-  run: Doc<"runs">;
+  run: RunWithPreview;
 };
 
 // Thumbnail scaling: we render the Sandpack iframe at a real 1280×853
@@ -64,7 +65,7 @@ export default function App() {
     );
 
   const enabledModels = models.filter((m) => m.enabled);
-  const runByCell = new Map<string, Doc<"runs">>();
+  const runByCell = new Map<string, RunWithPreview>();
   for (const r of matrix.runs) runByCell.set(`${r.referenceId}:${r.modelId}`, r);
 
   const totalAttempts = refs.length * enabledModels.length;
@@ -226,7 +227,7 @@ function BenchmarkRow({
   index: number;
   total: number;
   models: Doc<"models">[];
-  runByCell: Map<string, Doc<"runs">>;
+  runByCell: Map<string, RunWithPreview>;
   onSelect: (model: Doc<"models">, run: Doc<"runs">) => void;
 }) {
   const num = String(index + 1).padStart(3, "0");
@@ -367,7 +368,7 @@ function AttemptTile({
   onSelect,
 }: {
   model: Doc<"models">;
-  run: Doc<"runs"> | undefined;
+  run: RunWithPreview | undefined;
   onSelect?: () => void;
 }) {
   const status = run?.status;
@@ -397,7 +398,23 @@ function AttemptTile({
           cursor: interactive ? "pointer" : "default",
         }}
       >
-        {status === "complete" && run?.files && run.files.length > 0 ? (
+        {status === "complete" && run?.previewUrl ? (
+          <img
+            src={run.previewUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: "top",
+              display: "block",
+            }}
+          />
+        ) : status === "complete" && run?.files && run.files.length > 0 ? (
           <SandpackTile files={run.files} />
         ) : (
           <TileEmpty status={status} errorMessage={run?.errorMessage} />
@@ -491,7 +508,7 @@ function TileEmpty({
   );
 }
 
-function ScoreBadge({ run }: { run: Doc<"runs"> | undefined }) {
+function ScoreBadge({ run }: { run: RunWithPreview | undefined }) {
   if (run?.status !== "complete") return null;
   const score = run.judge?.score;
   return (
@@ -839,7 +856,7 @@ function DetailModal({
   );
 }
 
-function JudgeMeter({ run }: { run: Doc<"runs"> | undefined }) {
+function JudgeMeter({ run }: { run: RunWithPreview | undefined }) {
   const dims = run?.judge?.dimensions;
   if (!dims || dims.length === 0) {
     return (
