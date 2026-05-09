@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import {
-  Sandpack,
   SandpackProvider,
   SandpackPreview,
   SandpackLayout,
@@ -570,22 +569,24 @@ function SandpackTile({
           transform: `scale(${scale})`,
         }}
       >
-        <Sandpack
+        <SandpackProvider
           template="react-ts"
           files={sandpackFiles}
           options={{
-            showNavigator: false,
-            showTabs: false,
-            showLineNumbers: false,
-            showConsoleButton: false,
-            editorHeight: THUMB_VH,
-            editorWidthPercentage: 0,
             classes: {
               "sp-wrapper": "sp-tile-wrapper",
               "sp-preview": "sp-tile-preview",
             },
           }}
-        />
+          style={{ height: "100%", width: "100%" }}
+        >
+          <SandpackPreview
+            showNavigator={false}
+            showOpenInCodeSandbox={false}
+            showRefreshButton={false}
+            style={{ height: THUMB_VH, width: THUMB_VW, border: "none" }}
+          />
+        </SandpackProvider>
       </div>
     </div>
   );
@@ -603,6 +604,18 @@ function DetailModal({
   const splitRef = useRef<HTMLDivElement | null>(null);
   const [leftPct, setLeftPct] = useState(0.5);
   const dragging = useRef(false);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 720 : false,
+  );
+
+  useEffect(() => {
+    function onResize() {
+      setIsMobile(window.innerWidth < 720);
+    }
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     function onMove(e: PointerEvent) {
@@ -633,20 +646,20 @@ function DetailModal({
         background: "rgba(26, 22, 18, 0.85)",
         zIndex: 100,
         display: "flex",
-        alignItems: "center",
+        alignItems: isMobile ? "stretch" : "center",
         justifyContent: "center",
-        padding: 32,
+        padding: isMobile ? 0 : 32,
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "var(--bg-paper)",
-          border: "1px solid var(--ink)",
+          border: isMobile ? "none" : "1px solid var(--ink)",
           width: "100%",
           maxWidth: 1600,
           height: "100%",
-          maxHeight: 900,
+          maxHeight: isMobile ? "none" : 900,
           display: "grid",
           gridTemplateRows: "auto 1fr",
           overflow: "hidden",
@@ -697,10 +710,9 @@ function DetailModal({
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ViewportSnap
-              splitRef={splitRef}
-              setLeftPct={setLeftPct}
-            />
+            {!isMobile && (
+              <ViewportSnap splitRef={splitRef} setLeftPct={setLeftPct} />
+            )}
             <button
               onClick={onClose}
               className="mono"
@@ -724,19 +736,20 @@ function DetailModal({
           ref={splitRef}
           style={{
             display: "flex",
+            flexDirection: isMobile ? "column" : "row",
             background: "var(--rule)",
-            overflow: "hidden",
+            overflow: isMobile ? "auto" : "hidden",
             minHeight: 0,
             position: "relative",
           }}
         >
           <section
             style={{
-              flexBasis: `${leftPct * 100}%`,
+              flexBasis: isMobile ? "auto" : `${leftPct * 100}%`,
               flexShrink: 0,
               background: "var(--bg-paper)",
               padding: 16,
-              overflow: "auto",
+              overflow: isMobile ? "visible" : "auto",
               display: "flex",
               flexDirection: "column",
               gap: 12,
@@ -767,27 +780,29 @@ function DetailModal({
             <JudgeBreakdown run={run} />
           </section>
 
-          <div
-            onPointerDown={(e) => {
-              dragging.current = true;
-              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-              document.body.style.cursor = "col-resize";
-              document.body.style.userSelect = "none";
-            }}
-            style={{
-              flex: "0 0 6px",
-              cursor: "col-resize",
-              background: "var(--rule)",
-              position: "relative",
-              zIndex: 1,
-            }}
-            title="Drag to resize"
-          />
+          {!isMobile && (
+            <div
+              onPointerDown={(e) => {
+                dragging.current = true;
+                (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+                document.body.style.cursor = "col-resize";
+                document.body.style.userSelect = "none";
+              }}
+              style={{
+                flex: "0 0 6px",
+                cursor: "col-resize",
+                background: "var(--rule)",
+                position: "relative",
+                zIndex: 1,
+              }}
+              title="Drag to resize"
+            />
+          )}
           <section
             style={{
               flex: 1,
               background: "#fff",
-              minHeight: 0,
+              minHeight: isMobile ? 480 : 0,
               minWidth: 0,
               position: "relative",
               overflow: "hidden",
