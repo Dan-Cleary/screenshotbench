@@ -538,6 +538,7 @@ function SandpackTile({
 
   const outerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0.2);
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const el = outerRef.current;
     if (!el) return;
@@ -548,7 +549,27 @@ function SandpackTile({
       setScale(Math.min(w / THUMB_VW, h / THUMB_VH));
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    // Lazy-mount the Sandpack iframe only when the tile scrolls into view.
+    // Each iframe runs its own React bundler; having all 18 mount on initial
+    // page load OOM-kills mobile Safari. Once mounted, we keep it (no
+    // unmount on scroll-out) so users don't see re-bundling on scroll-back.
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            setMounted(true);
+            io.disconnect();
+            break;
+          }
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    io.observe(el);
+    return () => {
+      ro.disconnect();
+      io.disconnect();
+    };
   }, []);
 
   return (
@@ -561,33 +582,35 @@ function SandpackTile({
         pointerEvents: "none",
       }}
     >
-      <div
-        style={{
-          width: THUMB_VW,
-          height: THUMB_VH,
-          transformOrigin: "top left",
-          transform: `scale(${scale})`,
-        }}
-      >
-        <SandpackProvider
-          template="react-ts"
-          files={sandpackFiles}
-          options={{
-            classes: {
-              "sp-wrapper": "sp-tile-wrapper",
-              "sp-preview": "sp-tile-preview",
-            },
+      {mounted ? (
+        <div
+          style={{
+            width: THUMB_VW,
+            height: THUMB_VH,
+            transformOrigin: "top left",
+            transform: `scale(${scale})`,
           }}
-          style={{ height: "100%", width: "100%" }}
         >
-          <SandpackPreview
-            showNavigator={false}
-            showOpenInCodeSandbox={false}
-            showRefreshButton={false}
-            style={{ height: THUMB_VH, width: THUMB_VW, border: "none" }}
-          />
-        </SandpackProvider>
-      </div>
+          <SandpackProvider
+            template="react-ts"
+            files={sandpackFiles}
+            options={{
+              classes: {
+                "sp-wrapper": "sp-tile-wrapper",
+                "sp-preview": "sp-tile-preview",
+              },
+            }}
+            style={{ height: "100%", width: "100%" }}
+          >
+            <SandpackPreview
+              showNavigator={false}
+              showOpenInCodeSandbox={false}
+              showRefreshButton={false}
+              style={{ height: THUMB_VH, width: THUMB_VW, border: "none" }}
+            />
+          </SandpackProvider>
+        </div>
+      ) : null}
     </div>
   );
 }
