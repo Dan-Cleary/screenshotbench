@@ -817,7 +817,7 @@ function DetailModal({
                 }}
               />
             )}
-            <JudgeBreakdown run={run} />
+            {!isMobile && <JudgeBreakdown run={run} />}
           </section>
 
           {!isMobile && (
@@ -840,7 +840,7 @@ function DetailModal({
           )}
           <section
             style={{
-              flex: 1,
+              flex: isMobile ? "0 0 auto" : 1,
               background: "#fff",
               minHeight: isMobile ? 480 : 0,
               minWidth: 0,
@@ -850,6 +850,17 @@ function DetailModal({
           >
             <ModalSandpack files={files} />
           </section>
+          {isMobile && (
+            <section
+              style={{
+                background: "var(--bg-paper)",
+                padding: 16,
+                borderTop: "1px solid var(--rule)",
+              }}
+            >
+              <JudgeBreakdown run={run} />
+            </section>
+          )}
         </div>
       </div>
     </div>
