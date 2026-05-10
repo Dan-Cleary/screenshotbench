@@ -31,8 +31,8 @@ dist-ssr
 # spike outputs (generated code per run)
 spike/output/
 
-# convex generated
-convex/_generated/
+# convex/_generated/ is checked in so build-from-git environments
+# (Vercel, CI) have the codegen output. Regenerated on every `convex dev`.
 .gstack/
 .vercel
 .convalytics
