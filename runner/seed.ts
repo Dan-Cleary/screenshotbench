@@ -8,6 +8,7 @@ import { api } from "../convex/_generated/api.js";
 
 const MODELS = [
   { slug: "composer-2", displayName: "Composer 2", provider: "Cursor", cursorSdkModelId: "composer-2" },
+  { slug: "claude-fable-5", displayName: "Fable 5", provider: "Anthropic", cursorSdkModelId: "claude-fable-5" },
   { slug: "claude-sonnet-4-6", displayName: "Sonnet 4.6", provider: "Anthropic", cursorSdkModelId: "claude-sonnet-4-6" },
   { slug: "claude-opus-4-7", displayName: "Opus 4.7", provider: "Anthropic", cursorSdkModelId: "claude-opus-4-7" },
   { slug: "gemini-3.1-pro", displayName: "Gemini 3.1 Pro", provider: "Google", cursorSdkModelId: "gemini-3.1-pro" },

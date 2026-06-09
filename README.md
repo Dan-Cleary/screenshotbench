@@ -10,10 +10,10 @@ completeness).
 
 ## What's in v0
 
-- **6 models:** Claude Opus 4.7, Claude Sonnet 4.6, Gemini 3.1 Pro,
-  Gemini 3 Flash, GPT-5.5, Composer 2
+- **7 models:** Claude Fable 5, Claude Opus 4.7, Claude Sonnet 4.6,
+  Gemini 3.1 Pro, Gemini 3 Flash, GPT-5.5, Composer 2
 - **3 references:** PostHog homepage, PromptHub pricing, Mistral signup
-- **18 graded cells**
+- **21 graded cells**
 
 ## How it works
 
@@ -60,7 +60,7 @@ src/            # React app (matrix view + detail modal)
 runner/
   add-reference.ts        # add a screenshot to references table
   trigger-one.ts          # queue a single (ref, model) cell
-  trigger-batch.ts        # queue all 6 models for a list of refs
+  trigger-batch.ts        # queue all 7 models for a list of refs
   run-pending.ts          # external runner — drains queued runs via Cursor SDK
   render-previews.ts      # render generated components to PNG → Convex storage
   judge/judge-run.ts      # vision judge → score + per-dim reasoning
@@ -82,7 +82,7 @@ npm run dev             # vite at http://localhost:5173
 cd runner
 npx tsx add-reference.ts <slug> "<Name>" <category> /path/to/screenshot.png
 
-# queue all 6 models for the new reference
+# queue all 7 models for the new reference
 npx tsx trigger-batch.ts   # edit targetSlugs first
 
 # generate code with Cursor SDK
